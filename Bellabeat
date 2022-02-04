@@ -1,0 +1,331 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Introduction
+
+This is a case study for the Google Data Analytics capstone project. 
+
+## Bellabeat
+
+Bellabeat is a company that manufactures health-focused smart products for women. It was founded by Urška Sršen and Sando Mur . Bellabeat offers varity of health trackers such as Ivy, Leaf Urban , Leaf Chakra etc . They collect the user's data and it gets analysed and gives the user information about their health in interractive visuals.
+
+### Task
+
+The aim of this analysis is to gather insights from the data of FitBit user and use those insights to help in making the Bellebeat products better and making the marketing strategy of Bellebeat more robust. 
+The goal is to inform Bellabeat's advertising strategy, Users of other health products and make our products better  based on conclusions drawn from this data.
+
+# Data Sources
+
+### Source
+
+The data source used is the “FitBit Fitness Tracker Data’’. It is licensed under CC0: Public Domain. The data is presented in both narrow and wide formats and all tables are structured. 
+
+### Issues with dataset
+
+•	The dataset is very old year(2016) that is 6 years old in 2022.
+
+•	Sample size of only 30 users thus does not represent a larger section of population.
+
+•	Problem with the date format
+
+# Data Usage
+
+This process we will use R to make the dataset suitable to perform multiple calculations and Data Visualization.
+
+•	dailyActivity_merged: To determine the most experienced activity state (very active, moderatley active, lightly active, sedentary), the frequency of times activities are logged and the average daily usage time for a fitbit
+
+•	sleepDay_merged: To determine average minutes users sleep
+
+
+•	hourlyCalories_merged, hourlyIntensity_merged: To investigate what hours of the day people burn the most calories and are most active.
+
+•	weightLogInfo_merged: To investigate typical body weight of fitbit users.
+
+•	dailyActivity_merged, sleepDay_merged: These will be joined to investigate trends between daily calories burned and sleep.
+
+•	dailySteps_merged, dailyActivity_merged: These will be joined to investigate trends between daily calories burned and total daily steps.
+
+#Process
+
+```{r}
+library(tidyverse)
+ library(here)
+ library(skimr)
+ library(janitor)
+ library(dplyr)
+library(lubridate)
+library(ggplot2)
+library(rmarkdown)
+ library(readxl)
+ dailyActivity <- read_excel("C:/Users/lenovo/Desktop/Case Study/Case Study 2/Dataset/dailyActivity_merged.xlsx")
+  dailyCalories <- read_excel("C:/Users/lenovo/Desktop/Case Study/Case Study 2/Dataset/dailyCalories_merged.xlsx")
+  dailyIntensities <- read_excel("C:/Users/lenovo/Desktop/Case Study/Case Study 2/Dataset/dailyIntensities_merged.xlsx")
+  dailySteps <- read_excel("C:/Users/lenovo/Desktop/Case Study/Case Study 2/Dataset/dailySteps_merged.xlsx")
+  hourlyCalories <- read_excel("C:/Users/lenovo/Desktop/Case Study/Case Study 2/Dataset/hourlyCalories_merged.xlsx")
+  hourlyCalories <- read_excel("C:/Users/lenovo/Desktop/Case Study/Case Study 2/Dataset/hourlyCalories_merged.xlsx")
+  hourlyIntensities <- read_excel("C:/Users/lenovo/Desktop/Case Study/Case Study 2/Dataset/hourlyIntensities_merged.xlsx")
+  sleepDay <- read_excel("C:/Users/lenovo/Desktop/Case Study/Case Study 2/Dataset/sleepDay_merged.xlsx")
+  weightLogInfo <- read_excel("C:/Users/lenovo/Desktop/Case Study/Case Study 2/Dataset/weightLogInfo_merged.xlsx")
+
+n_distinct(dailyActivity$Id)
+n_distinct(hourlyCalories$Id)
+n_distinct(hourlyIntensities$Id)
+n_distinct(sleepDay$Id)
+n_distinct(weightLogInfo$Id)
+n_distinct(dailySteps$Id)
+
+sum(duplicated(dailyActivity))
+sum(duplicated(hourlyCalories))
+sum(duplicated(hourlyIntensities))
+sum(duplicated(sleepDay))
+sum(duplicated(dailySteps))
+
+sleep_clean <- distinct(sleepDay)
+sum(duplicated(sleep_clean))
+
+dailyactivity_clean <- distinct(dailyActivity)
+sum(duplicated(dailyactivity_clean))
+
+dailycalories_clean <- distinct(dailyCalories)
+sum(duplicated(dailycalories_clean))
+
+dailyintensities_clean <- distinct(dailyIntensities)
+sum(duplicated(dailyintensities_clean))
+
+dailysteps_clean <- distinct(dailySteps)
+sum(duplicated(dailysteps_clean))
+
+hourlycalories_clean <- distinct(hourlyCalories)
+sum(duplicated(hourlycalories_clean))
+
+hourlyintensities_clean <- distinct(hourlyIntensities)
+sum(duplicated(hourlyintensities_clean))
+
+weight_clean <- distinct(weightLogInfo)
+sum(duplicated(weight_clean))
+
+dailyactivity_clean$ActivityDatev2 <- as.Date(dailyactivity_clean$ActivityDate, "%m/%d/%Y")
+daily_activity <- dailyactivity_clean %>% unite(id_date, "Id", "ActivityDatev2", sep = " ", remove = FALSE)
+
+sleep_clean$SleepDay2 <- strptime(sleep_clean$SleepDay, "%m/%d/%Y %I:%M:%S %p")
+sleep_clean <- sleep_clean %>% unite(id_date, "Id", "SleepDay2", sep = " ", remove = FALSE)
+
+hourlycalories_clean$ActivityHourv2 <- strptime(hourlycalories_clean$ActivityHour, "%m/%d/%Y %I:%M:%S %p")
+hourlycalories_clean <- hourlycalories_clean %>% unite(id_date, "Id", "ActivityHourv2", sep = " ", remove = FALSE)
+
+hourlyintensities_clean$ActivityHourv2 <- strptime(hourlyintensities_clean$ActivityHour, "%m/%d/%Y %I:%M:%S %p")
+hourly_intensity <- hourlyintensities_clean %>% unite(id_date, "Id", "ActivityHourv2", sep = " ", remove = FALSE)
+dailysteps_clean$ActivityDayv2 <- as.Date(dailysteps_clean$ActivityDay, "%m/%d/%Y")
+steps <- dailysteps_clean%>% unite(id_date, "Id", "ActivityDayv2", sep = " ", remove = FALSE)
+```
+### Daily Activities Analysis
+```{r}
+filter(daily_activity, TotalSteps == 0) %>% glimpse()
+daily_activity_used <- filter(daily_activity, TotalSteps != 0)
+glimpse (daily_activity_used)
+hourly_calories_split <- hourlycalories_clean %>% separate(ActivityHourv2, c('date', 'hour'), sep=" ")
+ glimpse(hourly_calories_split)
+hourly_intensity_split<- hourly_intensity %>% separate(ActivityHourv2, c('date', 'hour'), sep=" ")
+glimpse(hourly_intensity_split)
+calories_sleep <- merge(daily_activity, sleep_clean, by.x = "id_date", by.y = "id_date")
+glimpse(calories_sleep)
+calories_sleep_sub <- subset(calories_sleep, select = c(id_date, Calories,TotalMinutesAsleep, TotalTimeInBed))
+glimpse(calories_sleep_sub)
+calories_steps <- merge(daily_activity, steps, by.x = "id_date", by.y = "id_date")
+glimpse(calories_steps)
+calories_steps_sub <- subset(calories_steps, select = c(id_date, Calories,StepTotal))
+glimpse(calories_steps_sub)
+```
+# Analysis And Visulisation
+
+In this we will alter the dataset to make different Visualizations .
+
+### Average Fit Bit Usage per Day
+```{r}
+daily_activity %>% summarise(average_total_minutes = mean(VeryActiveMinutes + FairlyActiveMinutes + LightlyActiveMinutes + SedentaryMinutes), average_total_hours = average_total_minutes/60)
+```
+### Average hours of sleep per night
+```{r}
+sleep_clean %>% summarise(average_sleep = (mean(TotalMinutesAsleep))/60)
+```
+# Compare Average Minutes Spent Active per Day
+```{r}
+daily_activity_used %>% summarise(average_very_active = mean(VeryActiveMinutes), average_fairly_active = mean(FairlyActiveMinutes), average_lightly_active = mean (LightlyActiveMinutes),average_sedentary = mean(SedentaryMinutes), average_sedentary_minus_sleep = average_sedentary - 6.99*60) 
+```
+### Compare Average Hours Spent Active per Day
+```{r}
+daily_activity_used %>% summarise(average_very_active = (mean(VeryActiveMinutes))/60, average_fairly_active = (mean(FairlyActiveMinutes))/60, average_lightly_active = (mean (LightlyActiveMinutes))/60, average_sedentary = (mean(SedentaryMinutes))/60, average_sedentary_minus_sleep = average_sedentary - 6.99) 
+```
+### Activity Levels (Hours)
+```{r}
+activity_groups_hours <- daily_activity_used %>% summarise(very_active = (mean(VeryActiveMinutes))/60, fairly_active = (mean(FairlyActiveMinutes))/60, lightly_active = (mean (LightlyActiveMinutes))/60, sedentary = (mean(SedentaryMinutes))/60, sedentary_minus_sleep = sedentary - 6.99) 
+agh_long <- gather(activity_groups_hours, "group", "hours")
+agh_long$group <- factor(agh_long$group, levels = c("very_active", "fairly_active", "lightly_active", "sedentary_minus_sleep", "sedentary"))
+```
+### Average Daily Hours Spent In Different Activity Levels
+```{r}
+ggplot(data = agh_long) + geom_col(mapping = aes(x = group, y = hours, fill = group), show.legend = FALSE) + 
+  labs(title = "Average Daily Hours spent in Different \nActivity Levels", x = "Activity Level", y = "Hours", fill = "Group") + 
+  theme_bw() + 
+  theme(
+  plot.title = element_text(size=12, face="bold", hjust = 0.5),
+  axis.title.x = element_text(size=10),
+  axis.title.y = element_text(size=10), 
+  axis.text.x = element_text(color = "black", size=6, angle=10, vjust=1.0, hjust=0.4))
+```
+### Days Activity Logs Features
+```{r}
+activity_logs_days <- daily_activity %>% summarise(total_days_with = nrow(daily_activity[daily_activity$LoggedActivitiesDistance != 0, ]), total_days_without = nrow(daily_activity) - total_days_with)
+ald_long <- gather(activity_logs_days, "group", "days")
+
+#### Create Pie Chart
+ggplot(ald_long, aes(x="", y=days, fill=group)) + geom_col() + coord_polar(theta = "y") + geom_col(color = "black") +  geom_label(aes(label = days),color = "white",size = 3, position = position_stack(vjust = 0.5), show.legend = FALSE) +theme_void() +guides(fill = guide_legend(title = "")) + scale_fill_discrete(labels = c("Days when feature\nwas used", "Days when feature\nwas not used")) +  labs(title = "Proportion of Days when Activity Logs Feature was Used") + theme( plot.title = element_text(size=8, face="bold"))
+```
+#### Total Distance Each Person Recorded in their Activity Log
+```{r}
+total_distance <- daily_activity_used %>% group_by(Id) %>% summarise(distance = sum(LoggedActivitiesDistance)) %>% filter(distance > 0) %>% arrange(-distance)
+total_distance$Id <- c(1,2,3,4)
+ggplot(data = total_distance) + geom_col(mapping = aes(x = Id, y = distance, fill = Id), show.legend = FALSE) + 
+  labs(title = "Total Distance Each Person Recorded in their Activity Log", subtitle = "Those without a Log are Ommitted", x = "Participant", y = "Distance Logged (km)", fill = "Group") + 
+  theme_classic() + 
+  theme(
+    plot.title = element_text(size=8, face="bold", hjust = 0.5),
+    plot.subtitle = element_text(size=6, face = "italic", hjust = 0.5),
+    axis.title.x = element_text(size=6),
+    axis.title.y = element_text(size=6), 
+    axis.text.x = element_text(color = "black", size=6) )
+```
+## Calories and Intensity Analysis
+```{r}
+calories_per_hour <- hourly_calories_split %>% 
+  group_by(hour) %>% 
+  summarise(mean_calories = mean(Calories))
+intensity_per_hour <- hourly_intensity_split %>% 
+  group_by(hour) %>% 
+  summarise(mean_intensity = mean(AverageIntensity))
+calories_intensity <- merge(calories_per_hour, intensity_per_hour)
+
+calories_intensity %>% summarise(cor(mean_calories, mean_intensity))
+```
+This means both fluctuated similary thoughts the day.
+## Calories Intensity Graph
+```{r}
+ggplot(data = calories_intensity) + 
+  geom_col(mapping = aes(x = hour, y = mean_calories, fill = mean_intensity)) + scale_fill_gradient(low = "blue2", high = "red2") +
+  labs(title = "Average Calories Burned and Activity Intensity\nper Hour of the Day", x = "Time (24 Hour Clock)", y = "Mean Calories Burned (kcal)") + 
+  guides(
+    fill = guide_legend(title = "Mean Intensity Level\nHigh Levels =\nHigh Intensity", reverse = TRUE, override.aes = list(size = 2))
+  ) +
+  theme(
+    plot.title = element_text(size=10, face="bold", hjust = 0.3),
+    axis.title.x = element_text(size=8),
+    axis.title.y = element_text(size=7), 
+    legend.title = element_text(size=6),
+    axis.text.x = element_text(color = "black", size=5)
+  ) 
+```
+## Sleep Analysis
+
+Average nightly sleep and average sleep for each participant were calculated.
+```{r}
+average_sleep <- sleep_clean %>% summarise(mean_val = (mean(TotalMinutesAsleep))/60)
+```
+```{r}
+sleep_clean %>% group_by(Id) %>%  summarise(average_sleep = (mean(TotalMinutesAsleep))/60)
+```
+```{r}
+#Average hours of sleep per night
+average_sleeps <- sleep_clean %>% summarise(mean_val = (mean(TotalMinutesAsleep))/60)
+#Comparison of average sleep between participants
+sleep_clean %>% group_by(Id) %>%  summarise(average_sleep = (mean(TotalMinutesAsleep))/60)
+```
+### Average Sleep Per Night
+
+```{r}
+mean_sleep <- sleep_clean %>% group_by(Id) %>%  summarise(average_sleeps = (mean(TotalMinutesAsleep))/60)
+mean_sleep$Id <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24)
+
+ggplot(data=mean_sleep) +
+  geom_col(mapping = aes(x=Id, y=average_sleeps, fill = 'blue')) + 
+  geom_hline(data= average_sleeps, aes(yintercept = mean_val)) +
+  labs(
+    title = "Average Sleep per Night for Each Participant", x = "Participant", y = "Mean Sleep (Hours)", 
+  ) + annotate(
+    "text", x = 5, y = 8, 
+           label = "Mean Sleep Per Night (6.99 Hours)", 
+           colour = "black",
+           size = 2.5 ) +
+  theme(axis.ticks.x = element_blank(),
+    axis.text.x = element_blank(), 
+    plot.title = element_text(size=10, face="bold", hjust = 0.3),
+    legend.position = "none",
+    axis.title.x = element_text(size=8),
+    axis.title.y = element_text(size=8))
+```
+### Daily Calories and Sleep Analysis 
+
+```{r}
+calories_sleep_sub %>% 
+  summarise(mean(Calories), 
+            sd (Calories), 
+            mean(TotalMinutesAsleep), 
+            sd(TotalMinutesAsleep), 
+            cor(Calories,TotalMinutesAsleep))
+```
+There was no relationship between burning more calories and having a longer nights sleep.
+
+### Graph
+```{r}
+ggplot(data = calories_sleep_sub) + 
+  geom_point(mapping = aes(x = Calories, y = TotalMinutesAsleep), colour = "red2", alpha = 0.5) + geom_smooth(mapping = aes(x = Calories, y = TotalMinutesAsleep)) +
+  theme_bw() + 
+  labs(title = "Relationship Between Daily Calories Burned\nand Minutes of Sleep that Night", 
+    x = "Total Daily Calories Burned (kcal)", 
+    y = "Total Minues of Sleep"
+  ) +theme(plot.title = element_text(size=10, face="bold", hjust = 0.3),
+    axis.title.x = element_text(size=8),
+    axis.title.y = element_text(size=8)) 
+```
+## Daily Steps and Calories Burned Analysis
+```{r}
+ggplot(data = calories_steps_sub) + 
+  geom_point(mapping = aes(x = StepTotal, y = Calories, colour = Calories)) + 
+  scale_color_gradient(low = 'royalblue1', high = 'red3') + 
+  geom_smooth(mapping = aes(x = StepTotal, y = Calories)) + 
+  theme_bw() + 
+  labs(
+    title = "Relationship Between Daily Steps\nand Daily Calories Burned", 
+    x = "Total Daily Steps", 
+    y = "Total Daily Calories Burned (kcal)", 
+    colour = "Calories Burned\n(kcal)"
+    ) +
+  theme(
+    plot.title = element_text(size=10, face="bold", hjust = 0.3),
+    axis.title.x = element_text(size=8),
+    axis.title.y = element_text(size=7),
+    legend.title = element_text(size = 6),
+    legend.text = element_text(size = 6),
+    legend.key.size = unit(0.4, "cm") ) 
+```
+
+## Key Insigts
+
+•	Candidates rarely used activity log features
+
+•	Candidates slept/hours each night was not affected by how much they exercise.
+
+•	Candidate burn more calories between 8:00 a.m. to 7:00 p.m.
+
+•	Candidate took more steps burn more calories.
+
+## Recommendations:
+
+•	Promote the phrase “more steps, more calories burned”, because more steps burns more calories.
+
+•	Incentive the users to share their health personal information.
+
+•	Most of the days, users don ́t do high intense activities. Customers who devote time of their day to intense activities, such as athletes, can be new target customers for Bellabeat products and services.
+
+•	Understand why participants were not using the activity log. If consumers do not like it, this feature could be refined or removed. If consumer are unaware of this, it could be highlighted within advertising campaigns.
